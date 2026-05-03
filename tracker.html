@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LifeTrack — My Personal Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #13131a; --surface2: #1c1c27; --border: #2a2a3a;
+    --text: #e8e8f0; --muted: #6b6b88;
+    --fitness: #00e5a0; --food: #ff8c42; --medicine: #a78bfa; --money: #38bdf8;
+    --danger: #f87171; --warn: #fbbf24; --good: #34d399;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px; opacity: 0.18; pointer-events: none; z-index: 0;
+  }
+  header {
+    position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 2rem; border-bottom: 1px solid var(--border);
+    background: rgba(10,10,15,0.9); backdrop-filter: blur(12px);
+  }
+  .logo { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.04em; }
+  .logo span { color: var(--fitness); }
+  .month-selector {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.82rem;
+  }
+  .month-selector select { background: transparent; border: none; color: var(--text); font-family: inherit; font-size: inherit; cursor: pointer; outline: none; }
+  .tabs {
+    position: relative; z-index: 10; display: flex; border-bottom: 1px solid var(--border);
+    background: rgba(10,10,15,0.7); backdrop-filter: blur(8px); overflow-x: auto;
+  }
+  .tab {
+    flex: 1; min-width: 100px; display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    padding: 0.9rem 1rem; font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; border: none;
+    background: transparent; color: var(--muted); border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active[data-tab="fitness"]  { color: var(--fitness);  border-color: var(--fitness); }
+  .tab.active[data-tab="food"]     { color: var(--food);     border-color: var(--food); }
+  .tab.active[data-tab="medicine"] { color: var(--medicine); border-color: var(--medicine); }
+  .tab.active[data-tab="money"]    { color: var(--money);    border-color: var(--money); }
+  .main { position: relative; z-index: 10; max-width: 1100px; margin: 0 auto; padding: 1.75rem 1.5rem; }
+  .section { display: none; }
+  .section.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.2rem; position: relative; overflow: hidden; }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .card.fitness::before { background: var(--fitness); } .card.food::before { background: var(--food); }
+  .card.medicine::before { background: var(--medicine); } .card.money::before { background: var(--money); }
+  .card-label { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; }
+  .card-value { font-family: 'Syne', sans-serif; font-size: 1.65rem; font-weight: 800; letter-spacing: -0.04em; }
+  .card.fitness .card-value { color: var(--fitness); } .card.food .card-value { color: var(--food); }
+  .card.medicine .card-value { color: var(--medicine); } .card.money .card-value { color: var(--money); }
+  .card-sub { font-size: 0.66rem; color: var(--muted); margin-top: 0.2rem; }
+
+  .stats-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .stats-panel-header { font-family: 'Syne', sans-serif; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.4rem; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.7rem; }
+  .stat-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.9rem; }
+  .stat-box-label { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.25rem; }
+  .stat-box-value { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; }
+  .stat-box-sub { font-size: 0.6rem; color: var(--muted); margin-top: 0.12rem; }
+  .streak-badge { display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3); color: var(--warn); border-radius: 20px; padding: 0.2rem 0.65rem; font-size: 0.68rem; font-weight: 600; }
+  .sparkline-wrap { margin-top: 1rem; }
+  .sparkline-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.4rem; }
+  .sparkline-svg { width: 100%; height: 52px; display: block; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .panel-title { font-family: 'Syne', sans-serif; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+  .form-row { display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; min-width: 130px; }
+  .field label { font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .field input, .field select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 0.55rem 0.75rem; font-family: 'DM Mono', monospace; font-size: 0.8rem; outline: none; transition: border-color 0.2s; }
+  .field input:focus, .field select:focus { border-color: #555; }
+  .field select option { background: var(--surface2); }
+  .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+  .btn-fitness { background: var(--fitness); color: #000; } .btn-food { background: var(--food); color: #000; }
+  .btn-medicine { background: var(--medicine); color: #000; } .btn-money { background: var(--money); color: #000; }
+  .btn:hover { filter: brightness(1.15); transform: translateY(-1px); } .btn:active { transform: none; }
+
+  .bar-chart { display: flex; flex-direction: column; gap: 0.5rem; }
+  .bar-row { display: flex; align-items: center; gap: 0.75rem; }
+  .bar-label { width: 90px; font-size: 0.66rem; color: var(--muted); text-align: right; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { flex: 1; height: 10px; background: var(--surface2); border-radius: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s cubic-bezier(.25,.8,.25,1); }
+  .bar-count { width: 72px; font-size: 0.66rem; color: var(--muted); flex-shrink: 0; }
+
+  .entries-list { display: flex; flex-direction: column; gap: 0.45rem; }
+  .entry-item { display: flex; align-items: center; gap: 0.85rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; transition: border-color 0.2s; }
+  .entry-item:hover { border-color: var(--muted); }
+  .entry-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .fitness-dot { background: var(--fitness); } .food-dot { background: var(--food); }
+  .medicine-dot { background: var(--medicine); } .money-dot { background: var(--money); }
+  .entry-info { flex: 1; min-width: 0; }
+  .entry-name { font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-meta { font-size: 0.65rem; color: var(--muted); margin-top: 0.1rem; }
+  .entry-value { font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700; text-align: right; flex-shrink: 0; }
+  .entry-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 0.1rem 0.3rem; border-radius: 4px; transition: color 0.15s; }
+  .entry-del:hover { color: var(--danger); }
+  .empty-state { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: 0.78rem; }
+  .empty-icon { font-size: 2rem; display: block; margin-bottom: 0.4rem; }
+
+  @media (max-width: 600px) {
+    header { padding: 1rem; } .main { padding: 1rem; }
+    .tab { min-width: 72px; font-size: 0.7rem; padding: 0.75rem 0.5rem; }
+    .card-value { font-size: 1.35rem; } .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Life<span>Track</span></div>
+  <div class="month-selector">📅
+    <select id="monthSelect" onchange="changeMonth()">
+      <option value="2026-01">Jan 2026</option><option value="2026-02">Feb 2026</option>
+      <option value="2026-03">Mar 2026</option><option value="2026-04">Apr 2026</option>
+      <option value="2026-05" selected>May 2026</option><option value="2026-06">Jun 2026</option>
+      <option value="2026-07">Jul 2026</option><option value="2026-08">Aug 2026</option>
+      <option value="2026-09">Sep 2026</option><option value="2026-10">Oct 2026</option>
+      <option value="2026-11">Nov 2026</option><option value="2026-12">Dec 2026</option>
+    </select>
+  </div>
+</header>
+<div class="tabs">
+  <button class="tab active" data-tab="fitness"  onclick="switchTab('fitness')">🏋️ Fitness</button>
+  <button class="tab"        data-tab="food"      onclick="switchTab('food')">🥗 Food</button>
+  <button class="tab"        data-tab="medicine"  onclick="switchTab('medicine')">💊 Medicine</button>
+  <button class="tab"        data-tab="money"     onclick="switchTab('money')">💸 Money</button>
+</div>
+<div class="main">
+
+<!-- FITNESS -->
+<div class="section active" id="sec-fitness">
+  <div class="summary-grid">
+    <div class="card fitness"><div class="card-label">Workouts</div><div class="card-value" id="fit-count">0</div><div class="card-sub">this month</div></div>
+    <div class="card fitness"><div class="card-label">Total Mins</div><div class="card-value" id="fit-mins">0</div><div class="card-sub">active minutes</div></div>
+    <div class="card fitness"><div class="card-label">Calories Burned</div><div class="card-value" id="fit-cals">0</div><div class="card-sub">kcal</div></div>
+    <div class="card fitness"><div class="card-label">Avg Duration</div><div class="card-value" id="fit-avg-dur">—</div><div class="card-sub">min / session</div></div>
+  </div>
+  <div class="stats-panel">
+    <div class="stats-panel-header">📊 Statistics</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-box-label">Avg Cal / Session</div><div class="stat-box-value" id="fit-stat-avgcal">—</div><div class="stat-box-sub">kcal burned</div></div>
+      <div class="stat-box"><div class="stat-box-label">Best Session</div><div class="stat-box-value" id="fit-stat-maxcal">—</div><div class="stat-box-sub">most calories</div></div>
+      <div class="stat-box"><div class="stat-box-label">Longest Session</div><div class="stat-box-value" id="fit-stat-maxdur">—</div><div class="stat-box-sub">minutes</div></div>
+      <div class="stat-box"><div class="stat-box-label">Shortest Session</div><div class="stat-box-value" id="fit-stat-mindur">—</div><div class="stat-box-sub">minutes</div></div>
+      <div class="stat-box"><div class="stat-box-label">Active Days</div><div class="stat-box-value" id="fit-stat-days">—</div><div class="stat-box-sub" id="fit-stat-days-sub">/ — days</div></div>
+      <div class="stat-box"><div class="stat-box-label">Workouts / Week</div><div class="stat-box-value" id="fit-stat-perweek">—</div><div class="stat-box-sub">avg frequency</div></div>
+      <div class="stat-box"><div class="stat-box-label">Avg Cal / Day</div><div class="stat-box-value" id="fit-stat-avgday">—</div><div class="stat-box-sub">on active days</div></div>
+      <div class="stat-box"><div class="stat-box-label">Top Activity</div><div class="stat-box-value" id="fit-stat-top" style="font-size:0.88rem">—</div><div class="stat-box-sub">most logged</div></div>
+    </div>
+    <div id="fit-streak-wrap" style="margin-top:0.8rem"></div>
+    <div class="sparkline-wrap">
+      <div class="sparkline-label">Daily Minutes — This Month</div>
+      <svg class="sparkline-svg" id="fit-sparkline" viewBox="0 0 400 52" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Log Workout</div>
+    <div class="form-row">
+      <div class="field"><label>Activity</label><input type="text" id="fit-activity" placeholder="e.g. Running, Gym…"></div>
+      <div class="field" style="max-width:115px"><label>Duration (min)</label><input type="number" id="fit-duration" placeholder="30" min="1"></div>
+      <div class="field" style="max-width:115px"><label>Calories</label><input type="number" id="fit-calories" placeholder="200" min="0"></div>
+      <div class="field" style="max-width:135px"><label>Date</label><input type="date" id="fit-date"></div>
+      <button class="btn btn-fitness" onclick="addFitness()">+ Log</button>
+    </div>
+  </div>
+  <div class="panel"><div class="panel-title">Activity Breakdown</div><div class="bar-chart" id="fit-barchart"></div></div>
+  <div class="panel"><div class="panel-title">Workout Log</div><div class="entries-list" id="fit-entries"></div></div>
+</div>
+
+<!-- FOOD -->
+<div class="section" id="sec-food">
+  <div class="summary-grid">
+    <div class="card food"><div class="card-label">Meals Logged</div><div class="card-value" id="food-count">0</div><div class="card-sub">this month</div></div>
+    <div class="card food"><div class="card-label">Total Calories</div><div class="card-value" id="food-cals">0</div><div class="card-sub">kcal consumed</div></div>
+    <div class="card food"><div class="card-label">Avg / Day</div><div class="card-value" id="food-avg">—</div><div class="card-sub">kcal per day</div></div>
+    <div class="card food"><div class="card-label">Avg / Meal</div><div class="card-value" id="food-avg-meal">—</div><div class="card-sub">kcal per meal</div></div>
+  </div>
+  <div class="stats-panel">
+    <div class="stats-panel-header">📊 Statistics</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-box-label">Highest Day</div><div class="stat-box-value" id="food-stat-maxday">—</div><div class="stat-box-sub">kcal in a day</div></div>
+      <div class="stat-box"><div class="stat-box-label">Lowest Day</div><div class="stat-box-value" id="food-stat-minday">—</div><div class="stat-box-sub">kcal in a day</div></div>
+      <div class="stat-box"><div class="stat-box-label">Biggest Meal</div><div class="stat-box-value" id="food-stat-maxmeal">—</div><div class="stat-box-sub">kcal single meal</div></div>
+      <div class="stat-box"><div class="stat-box-label">Smallest Meal</div><div class="stat-box-value" id="food-stat-minmeal">—</div><div class="stat-box-sub">kcal single meal</div></div>
+      <div class="stat-box"><div class="stat-box-label">Days Tracked</div><div class="stat-box-value" id="food-stat-days">—</div><div class="stat-box-sub">unique days</div></div>
+      <div class="stat-box"><div class="stat-box-label">Meals / Day</div><div class="stat-box-value" id="food-stat-perday">—</div><div class="stat-box-sub">avg meals</div></div>
+      <div class="stat-box"><div class="stat-box-label">Median Daily Cal</div><div class="stat-box-value" id="food-stat-median">—</div><div class="stat-box-sub">median kcal</div></div>
+      <div class="stat-box"><div class="stat-box-label">Top Meal Type</div><div class="stat-box-value" id="food-stat-top" style="font-size:0.88rem">—</div><div class="stat-box-sub">most logged</div></div>
+    </div>
+    <div class="sparkline-wrap">
+      <div class="sparkline-label">Daily Calories — This Month</div>
+      <svg class="sparkline-svg" id="food-sparkline" viewBox="0 0 400 52" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Log Meal</div>
+    <div class="form-row">
+      <div class="field"><label>Food / Meal</label><input type="text" id="food-name" placeholder="e.g. Biryani, Salad…"></div>
+      <div class="field" style="max-width:125px"><label>Meal Type</label>
+        <select id="food-type"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select></div>
+      <div class="field" style="max-width:115px"><label>Calories</label><input type="number" id="food-calories" placeholder="400" min="0"></div>
+      <div class="field" style="max-width:135px"><label>Date</label><input type="date" id="food-date"></div>
+      <button class="btn btn-food" onclick="addFood()">+ Log</button>
+    </div>
+  </div>
+  <div class="panel"><div class="panel-title">Meal Type Split</div><div class="bar-chart" id="food-barchart"></div></div>
+  <div class="panel"><div class="panel-title">Meal Log</div><div class="entries-list" id="food-entries"></div></div>
+</div>
+
+<!-- MEDICINE -->
+<div class="section" id="sec-medicine">
+  <div class="summary-grid">
+    <div class="card medicine"><div class="card-label">Medicine Types</div><div class="card-value" id="med-count">0</div><div class="card-sub">tracked</div></div>
+    <div class="card medicine"><div class="card-label">Doses Taken</div><div class="card-value" id="med-doses">0</div><div class="card-sub">this month</div></div>
+    <div class="card medicine"><div class="card-label">Doses Missed</div><div class="card-value" id="med-missed">0</div><div class="card-sub">this month</div></div>
+    <div class="card medicine"><div class="card-label">Adherence</div><div class="card-value" id="med-adhere">—</div><div class="card-sub">overall %</div></div>
+  </div>
+  <div class="stats-panel">
+    <div class="stats-panel-header">📊 Statistics</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-box-label">Total Logged</div><div class="stat-box-value" id="med-stat-total">—</div><div class="stat-box-sub">all dose records</div></div>
+      <div class="stat-box"><div class="stat-box-label">Taken Rate</div><div class="stat-box-value" id="med-stat-taken-pct">—</div><div class="stat-box-sub">% doses taken</div></div>
+      <div class="stat-box"><div class="stat-box-label">Missed Rate</div><div class="stat-box-value" id="med-stat-missed-pct">—</div><div class="stat-box-sub">% doses missed</div></div>
+      <div class="stat-box"><div class="stat-box-label">Skipped</div><div class="stat-box-value" id="med-stat-skipped">—</div><div class="stat-box-sub">doses skipped</div></div>
+      <div class="stat-box"><div class="stat-box-label">Best Medicine</div><div class="stat-box-value" id="med-stat-best" style="font-size:0.82rem">—</div><div class="stat-box-sub">highest adherence</div></div>
+      <div class="stat-box"><div class="stat-box-label">Needs Attention</div><div class="stat-box-value" id="med-stat-worst" style="font-size:0.82rem">—</div><div class="stat-box-sub">lowest adherence</div></div>
+    </div>
+    <div id="med-streak-wrap" style="margin-top:0.8rem"></div>
+    <div class="sparkline-wrap">
+      <div class="sparkline-label">Daily Adherence % — This Month</div>
+      <svg class="sparkline-svg" id="med-sparkline" viewBox="0 0 400 52" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Log Medicine</div>
+    <div class="form-row">
+      <div class="field"><label>Medicine Name</label><input type="text" id="med-name" placeholder="e.g. Metformin, Vit D…"></div>
+      <div class="field" style="max-width:120px"><label>Dose</label><input type="text" id="med-dose" placeholder="e.g. 500mg"></div>
+      <div class="field" style="max-width:120px"><label>Status</label>
+        <select id="med-status"><option>Taken</option><option>Missed</option><option>Skipped</option></select></div>
+      <div class="field" style="max-width:135px"><label>Date</label><input type="date" id="med-date"></div>
+      <button class="btn btn-medicine" onclick="addMedicine()">+ Log</button>
+    </div>
+  </div>
+  <div class="panel"><div class="panel-title">Adherence by Medicine</div><div class="bar-chart" id="med-barchart"></div></div>
+  <div class="panel"><div class="panel-title">Medicine Log</div><div class="entries-list" id="med-entries"></div></div>
+</div>
+
+<!-- MONEY -->
+<div class="section" id="sec-money">
+  <div class="summary-grid">
+    <div class="card money"><div class="card-label">Total Spent</div><div class="card-value" id="mon-total">₹0</div><div class="card-sub">this month</div></div>
+    <div class="card money"><div class="card-label">Transactions</div><div class="card-value" id="mon-count">0</div><div class="card-sub">entries</div></div>
+    <div class="card money"><div class="card-label">Avg / Day</div><div class="card-value" id="mon-avg">₹0</div><div class="card-sub">daily spend</div></div>
+    <div class="card money"><div class="card-label">Largest Expense</div><div class="card-value" id="mon-max">₹0</div><div class="card-sub">single transaction</div></div>
+  </div>
+  <div class="stats-panel">
+    <div class="stats-panel-header">📊 Statistics</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-box-label">Avg per Transaction</div><div class="stat-box-value" id="mon-stat-avg-tx">—</div><div class="stat-box-sub">per entry</div></div>
+      <div class="stat-box"><div class="stat-box-label">Smallest Expense</div><div class="stat-box-value" id="mon-stat-min">—</div><div class="stat-box-sub">minimum</div></div>
+      <div class="stat-box"><div class="stat-box-label">Highest Day</div><div class="stat-box-value" id="mon-stat-maxday">—</div><div class="stat-box-sub">most spent in a day</div></div>
+      <div class="stat-box"><div class="stat-box-label">Median Transaction</div><div class="stat-box-value" id="mon-stat-median">—</div><div class="stat-box-sub">middle value</div></div>
+      <div class="stat-box"><div class="stat-box-label">Spending Days</div><div class="stat-box-value" id="mon-stat-days">—</div><div class="stat-box-sub">unique days</div></div>
+      <div class="stat-box"><div class="stat-box-label">Top Category</div><div class="stat-box-value" id="mon-stat-top" style="font-size:0.88rem">—</div><div class="stat-box-sub">highest spend</div></div>
+      <div class="stat-box"><div class="stat-box-label">Top Cat %</div><div class="stat-box-value" id="mon-stat-top-pct">—</div><div class="stat-box-sub">of total</div></div>
+      <div class="stat-box"><div class="stat-box-label">Projected Month</div><div class="stat-box-value" id="mon-stat-proj">—</div><div class="stat-box-sub">at current rate</div></div>
+    </div>
+    <div class="sparkline-wrap">
+      <div class="sparkline-label">Daily Spending ₹ — This Month</div>
+      <svg class="sparkline-svg" id="mon-sparkline" viewBox="0 0 400 52" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Add Expense</div>
+    <div class="form-row">
+      <div class="field"><label>Description</label><input type="text" id="mon-desc" placeholder="e.g. Groceries, Netflix…"></div>
+      <div class="field" style="max-width:135px"><label>Category</label>
+        <select id="mon-cat"><option>Food</option><option>Health</option><option>Transport</option><option>Shopping</option><option>Utilities</option><option>Entertainment</option><option>Other</option></select></div>
+      <div class="field" style="max-width:115px"><label>Amount (₹)</label><input type="number" id="mon-amount" placeholder="500" min="0"></div>
+      <div class="field" style="max-width:135px"><label>Date</label><input type="date" id="mon-date"></div>
+      <button class="btn btn-money" onclick="addMoney()">+ Add</button>
+    </div>
+  </div>
+  <div class="panel"><div class="panel-title">Spending by Category</div><div class="bar-chart" id="mon-barchart"></div></div>
+  <div class="panel"><div class="panel-title">Expense Log</div><div class="entries-list" id="mon-entries"></div></div>
+</div>
+
+</div>
+<script>
+let currentMonth='2026-05';
+const SK='lifetrack_v2';
+function loadState(){try{return JSON.parse(localStorage.getItem(SK))||{};}catch{return{};}}
+function saveState(s){localStorage.setItem(SK,JSON.stringify(s));}
+function getMonthData(m){const s=loadState();if(!s[m])s[m]={fitness:[],food:[],medicine:[],money:[]};return s[m];}
+function saveMonthData(m,d){const s=loadState();s[m]=d;saveState(s);}
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById(`sec-${tab}`).classList.add('active');
+  renderAll();
+}
+function changeMonth(){currentMonth=document.getElementById('monthSelect').value;renderAll();}
+function today(){return new Date().toISOString().slice(0,10);}
+function fmtDate(d){if(!d)return'';const[y,m,dy]=d.split('-');return`${dy}/${m}/${y}`;}
+function genId(){return Date.now()+Math.random().toString(36).slice(2,7);}
+function emptyState(icon,msg){return`<div class="empty-state"><span class="empty-icon">${icon}</span>${msg}</div>`;}
+function inr(n){return'₹'+Math.round(n).toLocaleString('en-IN');}
+function average(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;}
+function med(arr){if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);const m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+function perDayMap(entries,fn){const m={};entries.forEach(e=>{m[e.date]=(m[e.date]||0)+fn(e);});return m;}
+function daysInMonth(ym){const[y,m]=ym.split('-').map(Number);return new Date(y,m,0).getDate();}
+function calcStreak(entries,fn){
+  const dm=perDayMap(entries,fn);let streak=0;const d=new Date(today());
+  for(let i=0;i<366;i++){const k=d.toISOString().slice(0,10);if(dm[k]&&dm[k]>0){streak++;d.setDate(d.getDate()-1);}else break;}
+  return streak;
+}
+function buildDailyData(entries,fn){
+  const total=daysInMonth(currentMonth);const dm=perDayMap(entries,fn);const[y,m]=currentMonth.split('-');
+  return Array.from({length:total},(_,i)=>{const day=String(i+1).padStart(2,'0');const k=`${y}-${m}-${day}`;return{day:i+1,val:dm[k]||0};});
+}
+function drawSparkline(svgId,data,color){
+  const svg=document.getElementById(svgId);if(!svg)return;
+  const vals=data.map(d=>d.val);const maxV=Math.max(...vals,1);const n=data.length;
+  if(!n||vals.every(v=>v===0)){svg.innerHTML=`<text x="10" y="28" fill="#555" font-size="10" font-family="monospace">No data yet</text>`;return;}
+  const W=400,H=52,PAD=5;const xStep=n>1?(W-PAD*2)/(n-1):W/2;
+  const pts=data.map((d,i)=>({x:PAD+i*xStep,y:PAD+(1-d.val/maxV)*(H-PAD*2)}));
+  const path=pts.map((p,i)=>`${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const area=path+` L${pts[pts.length-1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
+  const avgV=average(vals.filter(v=>v>0));const avgY=PAD+(1-avgV/maxV)*(H-PAD*2);
+  svg.innerHTML=`<defs><linearGradient id="g_${svgId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.4"/><stop offset="100%" stop-color="${color}" stop-opacity="0.02"/></linearGradient></defs>
+    <path d="${area}" fill="url(#g_${svgId})"/>
+    <line x1="${PAD}" y1="${avgY.toFixed(1)}" x2="${W-PAD}" y2="${avgY.toFixed(1)}" stroke="${color}" stroke-opacity="0.35" stroke-dasharray="4,3" stroke-width="1.2"/>
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map((p,i)=>vals[i]>0?`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.8" fill="${color}"/>`:'').join('')}`;
+}
+
+// ===== FITNESS =====
+function addFitness(){
+  const activity=document.getElementById('fit-activity').value.trim();
+  const duration=parseInt(document.getElementById('fit-duration').value)||0;
+  const calories=parseInt(document.getElementById('fit-calories').value)||0;
+  const date=document.getElementById('fit-date').value||today();
+  if(!activity)return alert('Enter an activity!');
+  const data=getMonthData(currentMonth);
+  data.fitness.push({id:genId(),activity,duration,calories,date});
+  saveMonthData(currentMonth,data);
+  ['fit-activity','fit-duration','fit-calories'].forEach(id=>document.getElementById(id).value='');
+  renderFitness(data);
+}
+function deleteFitness(id){const data=getMonthData(currentMonth);data.fitness=data.fitness.filter(e=>e.id!==id);saveMonthData(currentMonth,data);renderFitness(data);}
+function renderFitness(data){
+  const e=data.fitness;const count=e.length;
+  const totalMins=e.reduce((s,x)=>s+x.duration,0);
+  const totalCals=e.reduce((s,x)=>s+x.calories,0);
+  const avgDur=count?Math.round(totalMins/count):0;
+  document.getElementById('fit-count').textContent=count;
+  document.getElementById('fit-mins').textContent=totalMins;
+  document.getElementById('fit-cals').textContent=totalCals;
+  document.getElementById('fit-avg-dur').textContent=count?avgDur+' min':'—';
+  const calArr=e.map(x=>x.calories);const durArr=e.map(x=>x.duration);
+  const days=new Set(e.map(x=>x.date)).size;
+  const weeks=daysInMonth(currentMonth)/7;
+  const actCount={};e.forEach(x=>{actCount[x.activity]=(actCount[x.activity]||0)+1;});
+  const topAct=Object.entries(actCount).sort((a,b)=>b[1]-a[1])[0];
+  const activeDayMap=perDayMap(e,x=>x.calories);
+  const avgCalPerDay=days?Math.round(Object.values(activeDayMap).reduce((a,b)=>a+b,0)/days):0;
+  document.getElementById('fit-stat-avgcal').textContent=count?Math.round(average(calArr)):'—';
+  document.getElementById('fit-stat-maxcal').textContent=calArr.length?Math.max(...calArr)+' kcal':'—';
+  document.getElementById('fit-stat-maxdur').textContent=durArr.length?Math.max(...durArr)+' min':'—';
+  document.getElementById('fit-stat-mindur').textContent=durArr.length?Math.min(...durArr)+' min':'—';
+  document.getElementById('fit-stat-days').textContent=days||'—';
+  document.getElementById('fit-stat-days-sub').textContent=`/ ${daysInMonth(currentMonth)} days`;
+  document.getElementById('fit-stat-perweek').textContent=count?(count/weeks).toFixed(1):'—';
+  document.getElementById('fit-stat-avgday').textContent=days?avgCalPerDay+' kcal':'—';
+  document.getElementById('fit-stat-top').textContent=topAct?topAct[0]:'—';
+  const streak=calcStreak(e,x=>x.duration);
+  const sw=document.getElementById('fit-streak-wrap');
+  sw.innerHTML=streak>=2?`<span class="streak-badge">🔥 ${streak}-day workout streak!</span>`:(streak===1?`<span class="streak-badge">🔥 Active today — keep it going!</span>`:'');
+  drawSparkline('fit-sparkline',buildDailyData(e,x=>x.duration),'var(--fitness)');
+  const actMap={};e.forEach(x=>{actMap[x.activity]=(actMap[x.activity]||0)+x.duration;});
+  const maxM=Math.max(...Object.values(actMap),1);const bc=document.getElementById('fit-barchart');
+  if(!Object.keys(actMap).length){bc.innerHTML='<div style="color:var(--muted);font-size:0.75rem">No data yet</div>';}
+  else bc.innerHTML=Object.entries(actMap).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([act,m])=>`<div class="bar-row"><div class="bar-label">${act.slice(0,12)}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(m/maxM*100)}%;background:var(--fitness)"></div></div><div class="bar-count">${m} min</div></div>`).join('');
+  const el=document.getElementById('fit-entries');
+  if(!e.length){el.innerHTML=emptyState('🏋️','No workouts logged yet');return;}
+  el.innerHTML=[...e].reverse().map(x=>`<div class="entry-item"><div class="entry-dot fitness-dot"></div><div class="entry-info"><div class="entry-name">${x.activity}</div><div class="entry-meta">${fmtDate(x.date)} · ${x.duration} min · ${x.calories} kcal</div></div><button class="entry-del" onclick="deleteFitness('${x.id}')">✕</button></div>`).join('');
+}
+
+// ===== FOOD =====
+function addFood(){
+  const name=document.getElementById('food-name').value.trim();
+  const type=document.getElementById('food-type').value;
+  const calories=parseInt(document.getElementById('food-calories').value)||0;
+  const date=document.getElementById('food-date').value||today();
+  if(!name)return alert('Enter a food name!');
+  const data=getMonthData(currentMonth);
+  data.food.push({id:genId(),name,type,calories,date});
+  saveMonthData(currentMonth,data);
+  document.getElementById('food-name').value='';document.getElementById('food-calories').value='';
+  renderFood(data);
+}
+function deleteFood(id){const data=getMonthData(currentMonth);data.food=data.food.filter(e=>e.id!==id);saveMonthData(currentMonth,data);renderFood(data);}
+function renderFood(data){
+  const e=data.food;const count=e.length;
+  const totalCals=e.reduce((s,x)=>s+x.calories,0);
+  const dayMap=perDayMap(e,x=>x.calories);const days=Object.keys(dayMap).length||1;
+  const avgDay=Math.round(totalCals/days);const avgMeal=count?Math.round(totalCals/count):0;
+  document.getElementById('food-count').textContent=count;
+  document.getElementById('food-cals').textContent=totalCals;
+  document.getElementById('food-avg').textContent=count?avgDay:'—';
+  document.getElementById('food-avg-meal').textContent=count?avgMeal:'—';
+  const dayVals=Object.values(dayMap);
+  const maxDay=dayVals.length?Math.max(...dayVals):0;const minDay=dayVals.length?Math.min(...dayVals):0;
+  const calArr=e.map(x=>x.calories);
+  const maxMeal=calArr.length?Math.max(...calArr):0;const minMeal=calArr.length?Math.min(...calArr):0;
+  const medianDay=med(dayVals);
+  const typeCount={};e.forEach(x=>{typeCount[x.type]=(typeCount[x.type]||0)+1;});
+  const topType=Object.entries(typeCount).sort((a,b)=>b[1]-a[1])[0];
+  const mealsPerDay=Object.keys(dayMap).length?(count/Object.keys(dayMap).length).toFixed(1):'—';
+  document.getElementById('food-stat-maxday').textContent=maxDay?maxDay+' kcal':'—';
+  document.getElementById('food-stat-minday').textContent=minDay?minDay+' kcal':'—';
+  document.getElementById('food-stat-maxmeal').textContent=maxMeal?maxMeal+' kcal':'—';
+  document.getElementById('food-stat-minmeal').textContent=minMeal?minMeal+' kcal':'—';
+  document.getElementById('food-stat-days').textContent=Object.keys(dayMap).length||'—';
+  document.getElementById('food-stat-perday').textContent=mealsPerDay;
+  document.getElementById('food-stat-median').textContent=dayVals.length?Math.round(medianDay)+' kcal':'—';
+  document.getElementById('food-stat-top').textContent=topType?topType[0]:'—';
+  drawSparkline('food-sparkline',buildDailyData(e,x=>x.calories),'var(--food)');
+  const typeMap={};e.forEach(x=>{typeMap[x.type]=(typeMap[x.type]||0)+x.calories;});
+  const maxC=Math.max(...Object.values(typeMap),1);const bc=document.getElementById('food-barchart');
+  if(!Object.keys(typeMap).length){bc.innerHTML='<div style="color:var(--muted);font-size:0.75rem">No data yet</div>';}
+  else bc.innerHTML=Object.entries(typeMap).sort((a,b)=>b[1]-a[1]).map(([t,c])=>`<div class="bar-row"><div class="bar-label">${t}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(c/maxC*100)}%;background:var(--food)"></div></div><div class="bar-count">${c} kcal</div></div>`).join('');
+  const el=document.getElementById('food-entries');
+  if(!e.length){el.innerHTML=emptyState('🥗','No meals logged yet');return;}
+  el.innerHTML=[...e].reverse().map(x=>`<div class="entry-item"><div class="entry-dot food-dot"></div><div class="entry-info"><div class="entry-name">${x.name}</div><div class="entry-meta">${fmtDate(x.date)} · ${x.type} · ${x.calories} kcal</div></div><button class="entry-del" onclick="deleteFood('${x.id}')">✕</button></div>`).join('');
+}
+
+// ===== MEDICINE =====
+function addMedicine(){
+  const name=document.getElementById('med-name').value.trim();
+  const dose=document.getElementById('med-dose').value.trim();
+  const status=document.getElementById('med-status').value;
+  const date=document.getElementById('med-date').value||today();
+  if(!name)return alert('Enter a medicine name!');
+  const data=getMonthData(currentMonth);
+  data.medicine.push({id:genId(),name,dose,status,date});
+  saveMonthData(currentMonth,data);
+  document.getElementById('med-name').value='';document.getElementById('med-dose').value='';
+  renderMedicine(data);
+}
+function deleteMedicine(id){const data=getMonthData(currentMonth);data.medicine=data.medicine.filter(e=>e.id!==id);saveMonthData(currentMonth,data);renderMedicine(data);}
+function renderMedicine(data){
+  const e=data.medicine;
+  const names=new Set(e.map(x=>x.name)).size;
+  const taken=e.filter(x=>x.status==='Taken').length;
+  const missed=e.filter(x=>x.status==='Missed').length;
+  const skipped=e.filter(x=>x.status==='Skipped').length;
+  const total=e.length;const pct=total?Math.round(taken/total*100)+'%':'—';
+  document.getElementById('med-count').textContent=names;
+  document.getElementById('med-doses').textContent=taken;
+  document.getElementById('med-missed').textContent=missed;
+  document.getElementById('med-adhere').textContent=pct;
+  const medMap={};
+  e.forEach(x=>{if(!medMap[x.name])medMap[x.name]={taken:0,total:0};medMap[x.name].total++;if(x.status==='Taken')medMap[x.name].taken++;});
+  const medAdh=Object.entries(medMap).map(([n,v])=>({name:n,pct:Math.round(v.taken/v.total*100)})).sort((a,b)=>b.pct-a.pct);
+  const bestMed=medAdh[0];const worstMed=medAdh[medAdh.length-1];
+  document.getElementById('med-stat-total').textContent=total||'—';
+  document.getElementById('med-stat-taken-pct').textContent=total?Math.round(taken/total*100)+'%':'—';
+  document.getElementById('med-stat-missed-pct').textContent=total?Math.round(missed/total*100)+'%':'—';
+  document.getElementById('med-stat-skipped').textContent=skipped||'0';
+  document.getElementById('med-stat-best').textContent=bestMed?bestMed.name+' ('+bestMed.pct+'%)':'—';
+  document.getElementById('med-stat-worst').textContent=(worstMed&&worstMed.pct<100)?worstMed.name+' ('+worstMed.pct+'%)':'—';
+  const dayTakenMap={};
+  e.forEach(x=>{if(!dayTakenMap[x.date])dayTakenMap[x.date]={taken:0,total:0};dayTakenMap[x.date].total++;if(x.status==='Taken')dayTakenMap[x.date].taken++;});
+  let streak=0;const ds=new Date(today());
+  for(let i=0;i<366;i++){const k=ds.toISOString().slice(0,10);const dy=dayTakenMap[k];if(dy&&dy.taken===dy.total&&dy.total>0){streak++;ds.setDate(ds.getDate()-1);}else break;}
+  const sw=document.getElementById('med-streak-wrap');
+  sw.innerHTML=streak>=2?`<span class="streak-badge">🌟 ${streak}-day perfect adherence streak!</span>`:(streak===1?`<span class="streak-badge">🌟 All doses taken today!</span>`:'');
+  const total2=daysInMonth(currentMonth);const[y,m]=currentMonth.split('-');
+  const sparkData=Array.from({length:total2},(_,i)=>{const day=String(i+1).padStart(2,'0');const k=`${y}-${m}-${day}`;const d2=dayTakenMap[k];return{day:i+1,val:d2?Math.round(d2.taken/d2.total*100):0};});
+  drawSparkline('med-sparkline',sparkData,'var(--medicine)');
+  const bc=document.getElementById('med-barchart');
+  if(!Object.keys(medMap).length){bc.innerHTML='<div style="color:var(--muted);font-size:0.75rem">No data yet</div>';}
+  else bc.innerHTML=Object.entries(medMap).map(([n,v])=>{const p=Math.round(v.taken/v.total*100);const col=p>=80?'var(--medicine)':p>=50?'var(--warn)':'var(--danger)';return`<div class="bar-row"><div class="bar-label">${n.slice(0,12)}</div><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${col}"></div></div><div class="bar-count">${p}%</div></div>`;}).join('');
+  const statusEmoji={Taken:'✅',Missed:'❌',Skipped:'⏭️'};
+  const el=document.getElementById('med-entries');
+  if(!e.length){el.innerHTML=emptyState('💊','No medicines logged yet');return;}
+  el.innerHTML=[...e].reverse().map(x=>`<div class="entry-item"><div class="entry-dot medicine-dot"></div><div class="entry-info"><div class="entry-name">${x.name}${x.dose?' · '+x.dose:''}</div><div class="entry-meta">${fmtDate(x.date)} · ${statusEmoji[x.status]} ${x.status}</div></div><button class="entry-del" onclick="deleteMedicine('${x.id}')">✕</button></div>`).join('');
+}
+
+// ===== MONEY =====
+function addMoney(){
+  const desc=document.getElementById('mon-desc').value.trim();
+  const cat=document.getElementById('mon-cat').value;
+  const amount=parseFloat(document.getElementById('mon-amount').value)||0;
+  const date=document.getElementById('mon-date').value||today();
+  if(!desc)return alert('Enter a description!');if(!amount)return alert('Enter an amount!');
+  const data=getMonthData(currentMonth);
+  data.money.push({id:genId(),desc,cat,amount,date});
+  saveMonthData(currentMonth,data);
+  document.getElementById('mon-desc').value='';document.getElementById('mon-amount').value='';
+  renderMoney(data);
+}
+function deleteMoney(id){const data=getMonthData(currentMonth);data.money=data.money.filter(e=>e.id!==id);saveMonthData(currentMonth,data);renderMoney(data);}
+function renderMoney(data){
+  const e=data.money;const total=e.reduce((s,x)=>s+x.amount,0);const count=e.length;
+  const maxAmt=count?Math.max(...e.map(x=>x.amount)):0;const minAmt=count?Math.min(...e.map(x=>x.amount)):0;
+  const dayMap=perDayMap(e,x=>x.amount);const spendDays=Object.keys(dayMap).length||1;
+  const avgDay=total/spendDays;
+  document.getElementById('mon-total').textContent=inr(total);
+  document.getElementById('mon-count').textContent=count;
+  document.getElementById('mon-avg').textContent=count?inr(avgDay):'₹0';
+  document.getElementById('mon-max').textContent=count?inr(maxAmt):'₹0';
+  const dayVals=Object.values(dayMap);
+  const maxDayVal=dayVals.length?Math.max(...dayVals):0;
+  const catMap={};e.forEach(x=>{catMap[x.cat]=(catMap[x.cat]||0)+x.amount;});
+  const topCatEntry=Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];
+  const amtArr=e.map(x=>x.amount);
+  const medianTx=med(amtArr);
+  const projected=spendDays?(total/spendDays)*daysInMonth(currentMonth):0;
+  const topPct=topCatEntry&&total?Math.round(topCatEntry[1]/total*100):0;
+  document.getElementById('mon-stat-avg-tx').textContent=count?inr(total/count):'—';
+  document.getElementById('mon-stat-min').textContent=count?inr(minAmt):'—';
+  document.getElementById('mon-stat-maxday').textContent=maxDayVal?inr(maxDayVal):'—';
+  document.getElementById('mon-stat-median').textContent=count?inr(medianTx):'—';
+  document.getElementById('mon-stat-days').textContent=Object.keys(dayMap).length||'—';
+  document.getElementById('mon-stat-top').textContent=topCatEntry?topCatEntry[0]:'—';
+  document.getElementById('mon-stat-top-pct').textContent=topCatEntry?topPct+'%':'—';
+  document.getElementById('mon-stat-proj').textContent=count?inr(projected):'—';
+  drawSparkline('mon-sparkline',buildDailyData(e,x=>x.amount),'var(--money)');
+  const maxC=Math.max(...Object.values(catMap),1);const bc=document.getElementById('mon-barchart');
+  if(!Object.keys(catMap).length){bc.innerHTML='<div style="color:var(--muted);font-size:0.75rem">No data yet</div>';}
+  else bc.innerHTML=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`<div class="bar-row"><div class="bar-label">${c}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxC*100)}%;background:var(--money)"></div></div><div class="bar-count">${inr(v)}</div></div>`).join('');
+  const el=document.getElementById('mon-entries');
+  if(!e.length){el.innerHTML=emptyState('💸','No expenses logged yet');return;}
+  el.innerHTML=[...e].reverse().map(x=>`<div class="entry-item"><div class="entry-dot money-dot"></div><div class="entry-info"><div class="entry-name">${x.desc}</div><div class="entry-meta">${fmtDate(x.date)} · ${x.cat}</div></div><div class="entry-value" style="color:var(--money)">${inr(x.amount)}</div><button class="entry-del" onclick="deleteMoney('${x.id}')">✕</button></div>`).join('');
+}
+
+function renderAll(){const data=getMonthData(currentMonth);renderFitness(data);renderFood(data);renderMedicine(data);renderMoney(data);}
+['fit-date','food-date','med-date','mon-date'].forEach(id=>{document.getElementById(id).value=today();});
+renderAll();
+</script>
+</body>
+</html>
